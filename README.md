@@ -1,2 +1,32 @@
+#_______________________________________________________________________
 # ANALISIS_DE_INVENTARIO_FORESTAL
+#_______________________________________________________________________
+
 Un script creado en R para el analisis básico de un inventario forestal
+
+ESTE SCRIP ESTA CREADO EN R UTILIZADO PARA REALIZAR UN ANALIS BASICO 
+DE INVENTARIOS FORESTALES COMERCIALES DE BOSQUES NATIVOS
+
+ESTE PERMITE LA OBTENCION DE MEDIDAS DE DISPERCION EN FUNCION DEL VOLUMEN Y AREA BASAL,
+LA OBTENCION DE UNA TABLA DE CLACIFICACION DIAMENTRICA EN FUNCION DE DIAMESTROS DESTE 30CM,
+INDICE DE VALOR DE INPORTANCIA, VALOR DE COVETURA Y GAFICAS DE LOS INIDCES Y VOLUMEN, NUMERO
+DE ARBOLES Y AREA BASAL
+
+#-----------------------------------------------------------------------
+
+LA INFORMACION DEBE DE ESTAR EN FORMATO DE .csv SEPRARDO POR ; Y SIGNO DECIMAL , Y ESTE DEBE
+DE CONSTAR CON LAS SIGUIENTES COLUMNAS:
+
+
+-----------------------------------------------------------------------
+ORDEN | PM | N_COMUN | N_CIENTIFICO | LC | HC
+-----------------------------------------------------------------------
+
+ORDEN= ES EL RODEN DE CADA ARBOL EN CADA PARCELA
+PM= DEFINE A CUAL PARCELA PERTENECE CADA ARBOL
+N_COMUN= DEFINE EL NOMBRE COMUN DE LA ESPECIE
+N_CIENTIFICO= DEFINE EL NOMBRE CIENTIFICO DE LA ESPECIE
+LC= LARGO DE CIRCUNFERENCIA EN cm
+HC= ALTURA DE LOS ARBOLES PUEDE COMERCIAL O TOTAL EN m
+----------------------------------------------------------------------
+
