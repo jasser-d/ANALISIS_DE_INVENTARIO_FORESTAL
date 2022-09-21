@@ -5,8 +5,11 @@ library(asbio)
 library(dplyr)
 library(ggplot2)
 library(readxl)
-source(file = "/SCRIPS/CLASS_DAP_F.R")
-source(file = "/SCRIPS/IVI.R")
+library(plotrix)
+
+source(file = "SCRIPS/CLASS_DAP_F.R")
+source(file = "SCRIPS/IVI.R")
+source(file = "SCRIPS/EST_INVENTARIO.R")
 
 #CARGAR DOCUMENTOS DE ANALISIS CON FORMATO DE:
 
@@ -18,23 +21,22 @@ source(file = "/SCRIPS/IVI.R")
 DATOS_INV<-cbind(190,0.7,900,0.1,0.95) %>% data.frame()
 colnames(DATOS_INV)<-c("N_PARC","FACTOR_F","AREA_T","PORCEN_MUEST","NIVEL_DE_SIGNIFICANCIA")
 #DIRECCION DE ARCHIVO DE INVENTARIO Y DE ALMACENAMIENTO DE RESLTADOS
-RUTAS_ARCH<-c("/DATOS_DE_EJEMPLO/INVENTARIO FORESTAL DE 900 Has.csv",
-              "/RESULTADOS_DE_EJEMPLO/")
+RUTAS_ARCH<-c("DATOS_DE_EJEMPLO/INVENTARIO FORESTAL DE 900 Has.csv",
+              "RESULTADOS_DE_EJEMPLO/")
 
 DATA_BASE<-read.csv(file = RUTAS_ARCH[1],header = T,sep = ";",dec = ",")
 
 #_____________________________________________________________________________________________
 
-#CALCULO DE DAP, VOLUMEN Y TABLA DE RESUMEN POR PARCELAS
+#CALCULO DE DAP,AREA BASAL VOLUMEN Y TABLA DE RESUMEN POR PARCELAS
 #_____________________________________________________________________________________________
 
-COL_CALC1<-(DATA_BASE$LC/(pi))
-COL_CALC2<-((COL_CALC1/100)^2)*(pi/4)
-COL_CALC3<-COL_CALC2*DATA_BASE$HC*0.7
-COL_CALC1<-cbind(COL_CALC1,COL_CALC2,COL_CALC3)
-NAME_COLM<-c("DAP","AB","VOL")
-colnames(COL_CALC1)<-NAME_COLM
-DATA_BASE<-cbind(DATA_BASE,COL_CALC1)
+DAP<-(DATA_BASE$LC/(pi))
+AREA_B<-((DAP/100)^2)*(pi/4)
+VOL_M3<-AREA_B*DATA_BASE$HC*0.7
+CALC_VAR<-cbind(DAP,AREA_B,VOL_M3)
+colnames(CALC_VAR)<-c("DAP","AB","VOL")
+DATA_BASE<-data.frame(DATA_BASE,CALC_VAR)
 
 RESUMEN_PARC<-group_by(DATA_BASE,PM) %>% summarise(N_ARB=n(),AB=sum(AB),VOL=sum(VOL))
 
@@ -44,38 +46,22 @@ GUARDADO_FUN<-function(RUTA,NOMBRE,TABLA){
 
 GUARDADO_FUN(RUTAS_ARCH[2],"RESUMEN_PARC",RESUMEN_PARC)
 
-rm(COL_CALC1,COL_CALC2,COL_CALC3)
+rm(DAP,AREA_B,VOL_M3,CALC_VAR)
 
 #_____________________________________________________________________________________________
 
 #ESTADISTICA DEL INVENTARIO
 #_____________________________________________________________________________________________
 
-TABLA_EST<-data.frame()
-
-for (i in 3:4) {
-  
-  AUXILIAR<-RESUMEN_PARC[1:nrow(RESUMEN_PARC),i]
-  colnames(AUXILIAR)<-"help"
-  AUXILIAR<-summarise(AUXILIAR,VAR=var(help),DESV_EST=sd(help),PROMED=mean(help),MEDIANA=median(help),
-                      MEDIA_AB=mad(help) ,MIN=min(help),MAX=max(help))
-  TABLA_EST<-rbind(TABLA_EST,AUXILIAR)
-}
-CV<-(TABLA_EST$DESV_EST/TABLA_EST$PROMED)*100
-ERROR_EST<-c(stan.error(RESUMEN_PARC$AB),stan.error(RESUMEN_PARC$VOL))
-ERROR_P<-(ERROR_EST/TABLA_EST$PROMED)*100
-MARGEN_ERR_AB<-qt(DATOS_INV$NIVEL_DE_SIGNIFICANCIA,length(RESUMEN_PARC$PM))*ERROR_EST[1]
-MARGEN_ERR_VOL<-qt(DATOS_INV$NIVEL_DE_SIGNIFICANCIA,length(RESUMEN_PARC$PM))*ERROR_EST[2]
-INTER_POSITIV<-c(mean(RESUMEN_PARC$AB)+MARGEN_ERR_AB,mean(RESUMEN_PARC$VOL)+MARGEN_ERR_VOL)
-INTER_NEGATIV<-c(mean(RESUMEN_PARC$AB)-MARGEN_ERR_AB,mean(RESUMEN_PARC$VOL)-MARGEN_ERR_VOL)
-
-NAMES_ROWS<-c("AREA_B","VOLUMEN")
-
-TABLA_EST<-cbind(NAMES_ROWS,TABLA_EST,CV,ERROR_EST,ERROR_P,INTER_POSITIV,INTER_NEGATIV)
+EST_AB<-EST_DESCR(RESUMEN_PARC$AB,DATOS_INV$NIVEL_DE_SIGNIFICANCIA)
+colnames(EST_AB)[2]<-"EST_AB"
+EST_VOL<-EST_DESCR(RESUMEN_PARC$VOL,DATOS_INV$NIVEL_DE_SIGNIFICANCIA)
+colnames(EST_VOL)[2]<-"EST_VOL"
+TABLA_EST<-merge(x=EST_AB,y=EST_VOL)
 
 GUARDADO_FUN(RUTAS_ARCH[2],"TABLA_EST",TABLA_EST)
 
-rm(AUXILIAR,CV,ERROR_EST,ERROR_P,i,MARGEN_ERR_AB,MARGEN_ERR_VOL,INTER_NEGATIV,INTER_POSITIV)
+rm(EST_AB,EST_VOL)
 
 #___________________________________________________________________________________________
 
@@ -83,17 +69,17 @@ rm(AUXILIAR,CV,ERROR_EST,ERROR_P,i,MARGEN_ERR_AB,MARGEN_ERR_VOL,INTER_NEGATIV,IN
 #___________________________________________________________________________________________
 AREA_PARCEL<-DATOS_INV$AREA_T*DATOS_INV$PORCEN_MUEST/nrow(RESUMEN_PARC)
 
-EST_MAX<-((TABLA_EST$PROMED+TABLA_EST$ERROR_EST)/AREA_PARCEL)*DATOS_INV$AREA_T
-EST_MED<-((TABLA_EST$PROMED)/AREA_PARCEL)*DATOS_INV$AREA_T
-EST_MIN<-((TABLA_EST$PROMED-TABLA_EST$ERROR_EST)/AREA_PARCEL)*DATOS_INV$AREA_T
 
-TABLA_PRO<-rbind(EST_MAX,EST_MED,EST_MIN)
-colnames(TABLA_PRO)<-NAMES_ROWS
-TABLA_PRO<-data.frame(row.names(TABLA_PRO),TABLA_PRO)
-colnames(TABLA_PRO)[1]<-"var"
+
+EST_MAX<-((TABLA_EST[13,3]+TABLA_EST[5,3])/AREA_PARCEL)*DATOS_INV$AREA_T
+EST_MED<-((TABLA_EST[13,3])/AREA_PARCEL)*DATOS_INV$AREA_T
+EST_MIN<-((TABLA_EST[13,3]-TABLA_EST[5,3])/AREA_PARCEL)*DATOS_INV$AREA_T
+
+TABLA_PRO<-data.frame("VOLUMEN",EST_MAX,EST_MED,EST_MIN)
+
 GUARDADO_FUN(RUTAS_ARCH[2],"PROYECCION_INVENTARIO",TABLA_PRO)
 
-rm(EST_MED,EST_MAX,EST_MIN,AREA_PARCEL)
+rm(EST_MED,EST_MAX,EST_MIN,AREA_PARCEL,TABLA_PRO)
 
 #___________________________________________________________________________________________
 
