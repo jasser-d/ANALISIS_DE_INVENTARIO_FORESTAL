@@ -8,8 +8,9 @@ library(readxl)
 library(plotrix)
 
 source(file = "SCRIPS/CLASS_DAP_F.R")
-source(file = "SCRIPS/IVI.R")
 source(file = "SCRIPS/EST_INVENTARIO.R")
+source(file = "SCRIPS/IVI.R")
+
 
 #CARGAR DOCUMENTOS DE ANALISIS CON FORMATO DE:
 
@@ -28,15 +29,13 @@ DATA_BASE<-read.csv(file = RUTAS_ARCH[1],header = T,sep = ";",dec = ",")
 
 #_____________________________________________________________________________________________
 
-#CALCULO DE DAP,AREA BASAL VOLUMEN Y TABLA DE RESUMEN POR PARCELAS
+#CALCULO DE DAP, VOLUMEN Y TABLA DE RESUMEN POR PARCELAS
 #_____________________________________________________________________________________________
 
 DAP<-(DATA_BASE$LC/(pi))
-AREA_B<-((DAP/100)^2)*(pi/4)
-VOL_M3<-AREA_B*DATA_BASE$HC*0.7
-CALC_VAR<-cbind(DAP,AREA_B,VOL_M3)
-colnames(CALC_VAR)<-c("DAP","AB","VOL")
-DATA_BASE<-data.frame(DATA_BASE,CALC_VAR)
+AB<-((DAP/100)^2)*(pi/4)
+VOL<-AB*DATA_BASE$HC*0.7
+DATA_BASE<-data.frame(DATA_BASE,DAP,AB,VOL)
 
 RESUMEN_PARC<-group_by(DATA_BASE,PM) %>% summarise(N_ARB=n(),AB=sum(AB),VOL=sum(VOL))
 
@@ -46,7 +45,7 @@ GUARDADO_FUN<-function(RUTA,NOMBRE,TABLA){
 
 GUARDADO_FUN(RUTAS_ARCH[2],"RESUMEN_PARC",RESUMEN_PARC)
 
-rm(DAP,AREA_B,VOL_M3,CALC_VAR)
+rm(DAP,AB,VOL)
 
 #_____________________________________________________________________________________________
 
@@ -54,14 +53,18 @@ rm(DAP,AREA_B,VOL_M3,CALC_VAR)
 #_____________________________________________________________________________________________
 
 EST_AB<-EST_DESCR(RESUMEN_PARC$AB,DATOS_INV$NIVEL_DE_SIGNIFICANCIA)
-colnames(EST_AB)[2]<-"EST_AB"
+colnames(EST_AB)[2]<-"AREA BASAL"
 EST_VOL<-EST_DESCR(RESUMEN_PARC$VOL,DATOS_INV$NIVEL_DE_SIGNIFICANCIA)
-colnames(EST_VOL)[2]<-"EST_VOL"
-TABLA_EST<-merge(x=EST_AB,y=EST_VOL)
+colnames(EST_VOL)[2]<-"VOLUMEN"
+EST_N<-EST_DESCR(RESUMEN_PARC$N_ARB,DATOS_INV$NIVEL_DE_SIGNIFICANCIA)
+colnames(EST_N)[2]<-"NUMERO DE ARBOLES"
+
+TABLA_EST<-merge(x=EST_AB,y=EST_VOL) %>% merge(y=EST_N)
+
 
 GUARDADO_FUN(RUTAS_ARCH[2],"TABLA_EST",TABLA_EST)
 
-rm(EST_AB,EST_VOL)
+rm(EST_AB,EST_VOL,EST_N,EST_DESCR)
 
 #___________________________________________________________________________________________
 
@@ -69,17 +72,17 @@ rm(EST_AB,EST_VOL)
 #___________________________________________________________________________________________
 AREA_PARCEL<-DATOS_INV$AREA_T*DATOS_INV$PORCEN_MUEST/nrow(RESUMEN_PARC)
 
+EST_MAX<-(as.numeric(TABLA_EST[8,2:4])/AREA_PARCEL)*DATOS_INV$AREA_T
+EST_MED<-(as.numeric(TABLA_EST[14,2:4])/AREA_PARCEL)*DATOS_INV$AREA_T
+EST_MIN<-(as.numeric(TABLA_EST[7,2:4])/AREA_PARCEL)*DATOS_INV$AREA_T
 
-
-EST_MAX<-((TABLA_EST[13,3]+TABLA_EST[5,3])/AREA_PARCEL)*DATOS_INV$AREA_T
-EST_MED<-((TABLA_EST[13,3])/AREA_PARCEL)*DATOS_INV$AREA_T
-EST_MIN<-((TABLA_EST[13,3]-TABLA_EST[5,3])/AREA_PARCEL)*DATOS_INV$AREA_T
-
-TABLA_PRO<-data.frame("VOLUMEN",EST_MAX,EST_MED,EST_MIN)
+TABLA_PRO<-rbind(EST_MAX,EST_MED,EST_MIN)
+TABLA_PRO<-data.frame(c("ESTIMACION MAX","ESTIMACION PRO","ESTIMACION MIN"),TABLA_PRO)
+colnames(TABLA_PRO)[1]<-"PROYECCION"
 
 GUARDADO_FUN(RUTAS_ARCH[2],"PROYECCION_INVENTARIO",TABLA_PRO)
 
-rm(EST_MED,EST_MAX,EST_MIN,AREA_PARCEL,TABLA_PRO)
+rm(EST_MED,EST_MAX,EST_MIN,AREA_PARCEL)
 
 #___________________________________________________________________________________________
 
@@ -89,6 +92,8 @@ rm(EST_MED,EST_MAX,EST_MIN,AREA_PARCEL,TABLA_PRO)
 CLACIFICACION<-select(DATA_BASE,N_COMUN, N_CIENTIFICO ,DAP ,AB ,VOL)
 CLACIFICACION<-CLASS_DAP_30(CLACIFICACION)
 GUARDADO_FUN(RUTAS_ARCH[2],"TABLA_DIAMETRICA",CLACIFICACION)
+
+rm(CLASS_DAP_30,CLACIFICACION)
 
 #___________________________________________________________________________________________
 
@@ -113,7 +118,7 @@ rm(BASE_FOR_IVI)
 INDICE_CV<-(TABLA_DE_IVI$ABUN_REL+TABLA_DE_IVI$DOM_REL)/2
 
 TABLA_DE_VC<-TABLA_DE_IVI %>% select(N_CIENTIFICO,N_COMUN,ABUN_REL,DOM_REL)
-TABLA_DE_VC<-cbind(TABLA_DE_VC,(INDICE_CV))
+TABLA_DE_VC<-data.frame(TABLA_DE_VC,(INDICE_CV))
 
 GUARDADO_FUN(RUTAS_ARCH[2],"tabla de valor decovertura",TABLA_DE_VC)
 
